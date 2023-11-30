@@ -36,6 +36,13 @@ layer:
         - file: src/uart_config.h
         - file: src/uart_stdout.h
         - file: include/BoardInit.hpp
+        - file: include/glcd.h
+        - file: include/hal_lcd.h
+        - file: include/lcd_img.h
+        - file: src/lcd_img.c
+        - file: src/glcd_mps3.c
+        - file: include/font_9x15_h.h
+        - file: include/peripheral_memmap.h
 
   components:
     - component: ARM::Device:Definition

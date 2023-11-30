@@ -22,23 +22,32 @@ solution:
   cdefault: # use default setup of toolchain specific controls.
 
   packs:
-    - pack: ARM::CMSIS@5.9.0
+    - pack: ARM::CMSIS
     - pack: ARM::CMSIS-DSP@1.14.4
     - pack: ARM::CMSIS-NN@4.0.0
-    - pack: Arm::ethos-u-core-driver@1.22.8
-    - pack: ARM::ml-embedded-eval-kit-uc-api@22.8.0-Beta
-    - pack: tensorflow::flatbuffers@1.22.8
-    - pack: tensorflow::gemmlowp@1.22.8
-    - pack: tensorflow::kissfft@1.22.8
-    - pack: tensorflow::ruy@1.22.8
-    - pack: tensorflow::tensorflow-lite-micro@1.22.8
+    # - pack: Arm::ethos-u-core-driver@1.22.8
+    # - pack: ARM::ml-embedded-eval-kit-uc-api@22.8.0-Beta
+    # - pack: tensorflow::flatbuffers@1.22.8
+    # - pack: tensorflow::gemmlowp@1.22.8
+    # - pack: tensorflow::kissfft@1.22.8
+    # - pack: tensorflow::ruy@1.22.8
+    # - pack: tensorflow::tensorflow-lite-micro@1.22.8
+    # - pack: AlifSemiconductor::Ensemble@0.5.2
 
     - pack: ARM::V2M_MPS3_SSE_300_BSP@1.3.0
     - pack: ARM::V2M_MPS3_SSE_310_BSP@1.0.0
     - pack: NXP::FRDM-K64F_BSP@14.0.0
     - pack: NXP::MK64F12_DFP@14.0.0
     - pack: Keil::STM32F7xx_DFP@2.15.1
-    - pack: AlifSemiconductor::Ensemble@0.5.2
+
+    - pack: tensorflow::flatbuffers@1.23.2
+    - pack: tensorflow::gemmlowp@1.23.2
+    - pack: tensorflow::kissfft@1.23.2
+    - pack: tensorflow::ruy@1.23.2
+    - pack: tensorflow::tensorflow-lite-micro@1.23.2
+    - pack: Arm::ethos-u-core-driver@1.23.2
+    - pack: ARM::ml-embedded-eval-kit-uc-api@22.8.0-Beta
+    - pack: AlifSemiconductor::Ensemble@0.9.6
 
   build-types:
     - type: Debug
@@ -87,6 +96,14 @@ solution:
       define:
         - ETHOSU55
         - USART_DRV_NUM: 4
+    
+    - type: Alif-E7B-M55-HP
+      device: AE722F80F55D5AS:M55_HP
+      define:
+        - ETHOSU55
+        - CONSOLE_UART: 4
+        - COPY_VECTORS
+        - LOG_LEVEL: "LOG_LEVEL_DEBUG"
 
     # NOTE: Currently Keil Studio Cloud doesn't allow switching between different NPU configurations.
     #       Applications produced by this build will only work if the FVP is run manually.
@@ -110,6 +127,7 @@ solution:
         - +AVH-SSE-300
         - +AVH-SSE-310
         - +Alif-E7-M55-HP
+        - +Alif-E7B-M55-HP
     - project: ./kws/kws.cproject.yml
       for-context:
         - +AVH-SSE-300-U65

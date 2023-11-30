@@ -1,6 +1,5 @@
 /*
- * SPDX-FileCopyrightText: Copyright 2022-2023 Arm Limited and/or its
- * affiliates <open-source-office@arm.com>
+ * SPDX-FileCopyrightText: Copyright 2022-2023 Arm Limited and/or its affiliates <open-source-office@arm.com>
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,31 +15,26 @@
  * limitations under the License.
  */
 
-#include "BoardInit.hpp"
+#include "ethosu_npu_init.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif // defined(__cplusplus)
-
-#include "log_macros.h"
-#include "uart_stdout.h"
-#include "hal_lcd.h"            /* LCD functions */
-
-/* Platform dependent files */
-#include "RTE_Components.h"  /* Provides definition for CMSIS_device_header */
+#include "RTE_Components.h"         /* For CPU related defintiions */
 #include CMSIS_device_header /* Gives us IRQ num, base addresses. */
+// #include "RTE_Device.h"
+#include "log_macros.h"             /* Logging functions */
 
-#if defined(ETHOSU_ARCH)
-#include "ethosu_driver.h" /* Arm Ethos-U NPU driver header */
-#include "ethosu_mem_config.h" /* Arm Ethos-U NPU memory config */
+#include "ethosu_mem_config.h"      /* Arm Ethos-U memory config */
+#include "ethosu_driver.h"          /* Arm Ethos-U driver header */
+
+
+struct ethosu_driver ethosu_drv; /* Default Ethos-U device driver */
 
 #if defined(ETHOS_U_CACHE_BUF_SZ) && (ETHOS_U_CACHE_BUF_SZ > 0)
 static uint8_t cache_arena[ETHOS_U_CACHE_BUF_SZ] CACHE_BUF_ATTRIBUTE;
 #else  /* defined (ETHOS_U_CACHE_BUF_SZ) && (ETHOS_U_CACHE_BUF_SZ > 0) */
-static uint8_t* cache_arena = NULL;
+static uint8_t *cache_arena = NULL;
 #endif /* defined (ETHOS_U_CACHE_BUF_SZ) && (ETHOS_U_CACHE_BUF_SZ > 0) */
 
-static uint8_t* get_cache_arena()
+static uint8_t *get_cache_arena()
 {
     return cache_arena;
 }
@@ -54,20 +48,26 @@ static size_t get_cache_arena_size()
 #endif /* defined (ETHOS_U_CACHE_BUF_SZ) && (ETHOS_U_CACHE_BUF_SZ > 0) */
 }
 
-struct ethosu_driver ethosu_drv; /* Default Ethos-U device driver */
+#define ETHOS_U_IRQN 55;
 
-/** @brief   Defines the Ethos-U interrupt handler: just a wrapper around the default
- *           implementation. */
-static void arm_ethosu_npu_irq_handler(void)
+/**
+ * @brief   Defines the Ethos-U interrupt handler: just a wrapper around the default
+ *          implementation. NPU_HP_IRQHandler
+ **/
+void arm_ethosu_npu_irq_handler(void)
 {
     /* Call the default interrupt handler from the NPU driver */
     ethosu_irq_handler(&ethosu_drv);
 }
-
-/** @brief  Initialises the NPU IRQ */
+/**
+ * @brief  Initialises the NPU IRQ
+ **/
 static void arm_ethosu_npu_irq_init(void)
 {
-    const IRQn_Type ethosu_irqnum = (IRQn_Type)ETHOS_U55_IRQn;
+    const IRQn_Type ethosu_irqnum = (IRQn_Type)ETHOS_U_IRQN;
+    info("in irq init \n");
+    info("EthosU IRQ#: %u, Handler: 0x%p\n",
+          ethosu_irqnum, arm_ethosu_npu_irq_handler);
 
     /* Register the EthosU IRQ handler in our vector table.
      * Note, this handler comes from the EthosU driver */
@@ -76,32 +76,38 @@ static void arm_ethosu_npu_irq_init(void)
     /* Enable the IRQ */
     NVIC_EnableIRQ(ethosu_irqnum);
 
-    debug("EthosU IRQ#: %u, Handler: 0x%p\n", ethosu_irqnum, arm_ethosu_npu_irq_handler);
+    // NVIC_SetVector(NPU_HP_IRQ_IRQn, (uint32_t) &arm_ethosu_npu_irq_handler);
+    // NVIC_EnableIRQ(NPU_HP_IRQ_IRQn);
+
+    // info("EthosU IRQ#: %u, Handler: 0x%p\n",
+    //       ethosu_irqnum, arm_ethosu_npu_irq_handler);
+    // NVIC_SetVector(NPU_HP_IRQ_IRQn, (uint32_t) &npu_irq_handler);
+    // NVIC_EnableIRQ(NPU_HP_IRQ_IRQn);
 }
 
-/** @brief  Initialises the NPU */
-static int arm_ethosu_npu_init(void)
+int arm_ethosu_npu_init(void)
 {
     int err = 0;
 
-    /* Initialise the IRQ */
-    arm_ethosu_npu_irq_init();
+    info("in npu init \n");
 
     /* Initialise Ethos-U device */
-    void *const ethosu_base_address = (void*)(ETHOS_U55_APB_BASE_S);
+    const uint32_t npuBaseAddr = 0x400E1000;
+    void* const ethosu_base_address = (void *)(npuBaseAddr);
 
-    debug("Cache arena: 0x%p\n", get_cache_arena());
-
-    if (0 != (err = ethosu_init(&ethosu_drv,         /* Ethos-U driver device pointer */
-                                ethosu_base_address, /* Ethos-U NPU's base address. */
-                                get_cache_arena(),   /* Pointer to fast mem area - NULL for U55. */
-                                get_cache_arena_size(), /* Fast mem region size. */
-                                1,                      /* Security enable. */
-                                1)))                    /* Privilege enable. */
+    if (0 != (err = ethosu_init(
+                  &ethosu_drv,            /* Ethos-U driver device pointer */
+                  ethosu_base_address,    /* Ethos-U NPU's base address. */
+                  get_cache_arena(),      /* Pointer to fast mem area - NULL for U55. */
+                  get_cache_arena_size(), /* Fast mem region size. */
+                  1,    /* Security enable. */
+                  1))) /* Privilege enable. */
     {
-        printf_err("failed to initialise Ethos-U device\n");
+        info("failed to initialise Ethos-U device\n");
         return err;
     }
+    /* Initialise the IRQ */
+    arm_ethosu_npu_irq_init();
 
     info("Ethos-U device initialised\n");
 
@@ -125,25 +131,4 @@ static int arm_ethosu_npu_init(void)
     info("\tCmd stream: v%" PRIu32 "\n", hw_info.cfg.cmd_stream_version);
 
     return 0;
-}
-
-#endif /* if defined(ETHOSU_ARCH) */
-
-#if defined(__cplusplus)
-}
-#endif // defined(__cplusplus)
-
-void BoardInit(void)
-{
-    UartStdOutInit();
-    /* Initialise LCD */
-    if (0 != hal_lcd_init()) {
-        printf_err("hal_lcd_init failed\n");
-        // return false;
-    }
-
-#if defined(ETHOSU_ARCH)
-    /* Initialise the NPU */
-    arm_ethosu_npu_init();
-#endif /* defined(ETHOSU_ARCH) */
 }

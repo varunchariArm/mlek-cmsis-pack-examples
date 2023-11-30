@@ -37,6 +37,7 @@ project:
             - +AVH-SSE-300-U55
             - +AVH-SSE-310-U55
             - +Alif-E7-M55-HP
+            - +Alif-E7B-M55-HP
         - file: src/yolo-fastest_192_face_v4_vela_Y256.tflite.cpp
           for-context:
             - +AVH-SSE-300-U65
@@ -52,6 +53,9 @@ project:
         - file: src/main_live.cpp
           for-context:
             - +Alif-E7-M55-HP
+        - file: src/main_ensemble.cpp
+          for-context:
+            - +Alif-E7B-M55-HP
 
     - group: Device Files
       files:
@@ -67,6 +71,8 @@ project:
             - +AVH-SSE-310-U65
         - file: linker/alif-e7-m55-hp.sct
           for-context: +Alif-E7-M55-HP
+        - file: linker/ensemble-RTSS-HP.sct
+          for-context: +Alif-E7B-M55-HP
 
 
   define:
@@ -87,6 +93,10 @@ project:
     - layer: ../device/alif-ensemble/alif-ensemble-E7-device.clayer.yml
       for-context:
         - +Alif-E7-M55-HP
+    
+    - layer: ../device/alif-ensemble-b/alif-ensemble-E7B-device.clayer.yml
+      for-context:
+        - +Alif-E7B-M55-HP
 
   components:
     - component: ARM::ML Eval Kit:Vision:Object detection

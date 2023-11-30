@@ -35,15 +35,8 @@
 /* Platform dependent files */
 #include "RTE_Components.h"  /* Provides definition for CMSIS_device_header */
 #include CMSIS_device_header /* Gives us IRQ num, base addresses. */
-#include "BoardInit.hpp"      /* Board initialisation */
+#include "platform_drivers.h"      /* Board initialisation */
 #include "log_macros.h"      /* Logging macros (optional) */
-#ifdef __cplusplus
-extern "C" {
-#endif
-#include "lcd_img.h"
-#ifdef __cplusplus
-}
-#endif
 
 namespace arm {
 namespace app {
@@ -62,49 +55,19 @@ namespace app {
 __asm("  .global __ARM_use_no_argv\n");
 #endif
 
-
-static void DrawDetectionBoxes(const std::vector<arm::app::object_detection::DetectionResult>& results,
-                                   uint32_t imgStartX,
-                                   uint32_t imgStartY,
-                                   uint32_t imgDownscaleFactor)
-    {
-        uint32_t lineThickness = 1;
-
-        for (const auto& result : results) {
-            /* Top line. */
-            lcd_display_box(imgStartX + result.m_x0 / imgDownscaleFactor,
-                                imgStartY + result.m_y0 / imgDownscaleFactor,
-                                result.m_w / imgDownscaleFactor,
-                                lineThickness,
-                                COLOR_GREEN);
-            /* Bot line. */
-            lcd_display_box(imgStartX + result.m_x0 / imgDownscaleFactor,
-                                imgStartY + (result.m_y0 + result.m_h) / imgDownscaleFactor -
-                                    lineThickness,
-                                result.m_w / imgDownscaleFactor,
-                                lineThickness,
-                                COLOR_GREEN);
-
-            /* Left line. */
-            lcd_display_box(imgStartX + result.m_x0 / imgDownscaleFactor,
-                                imgStartY + result.m_y0 / imgDownscaleFactor,
-                                lineThickness,
-                                result.m_h / imgDownscaleFactor,
-                                COLOR_GREEN);
-            /* Right line. */
-            lcd_display_box(imgStartX + (result.m_x0 + result.m_w) / imgDownscaleFactor -
-                                    lineThickness,
-                                imgStartY + result.m_y0 / imgDownscaleFactor,
-                                lineThickness,
-                                result.m_h / imgDownscaleFactor,
-                                COLOR_GREEN);
-        }
-    }
-
-int main()
+int main(void)
 {
     /* Initialise the UART module to allow printf related functions (if using retarget) */
-    BoardInit();
+    int ret = 0;
+    ret = platform_init();
+    if (ret!=0){
+        printf_err("init failed \n");
+        return 1;
+    }
+    
+    Toggle_Green_Led();
+    Toggle_Red_Led();
+    info("starting the model load \n");
 
     /* Model object creation and initialisation. */
     arm::app::YoloFastestModel model;
@@ -113,18 +76,12 @@ int main()
                     arm::app::object_detection::GetModelPointer(),
                     arm::app::object_detection::GetModelLen())) {
         printf_err("Failed to initialise model\n");
+        Toggle_Green_Led();
+        Toggle_Red_Led();
         return 1;
     }
-
+    Toggle_Green_Led();
     auto initialImgIdx = 0;
-    constexpr uint32_t dataPsnImgDownscaleFactor = 1;
-    constexpr uint32_t dataPsnImgStartX          = 10;
-    constexpr uint32_t dataPsnImgStartY          = 35;
-
-    constexpr uint32_t dataPsnTxtInfStartX = 20;
-    constexpr uint32_t dataPsnTxtInfStartY = 28;
-
-    lcd_clear(0);
 
     TfLiteTensor* inputTensor   = model.GetInputTensor(0);
     TfLiteTensor* outputTensor0 = model.GetOutputTensor(0);
@@ -132,9 +89,13 @@ int main()
 
     if (!inputTensor->dims) {
         printf_err("Invalid input tensor dims\n");
+        Toggle_Green_Led();
+        Toggle_Red_Led();
         return 1;
     } else if (inputTensor->dims->size < 3) {
         printf_err("Input tensor dimension should be >= 3\n");
+        Toggle_Green_Led();
+        Toggle_Red_Led();
         return 1;
     }
 
@@ -168,38 +129,28 @@ int main()
 
     /* Run the pre-processing, inference and post-processing. */
     if (!preProcess.DoPreProcess(currImage, copySz)) {
-        printf_err("Pre-processing failed.");
+        printf_err("Pre-processing failed. \n");
+        Toggle_Green_Led();
+        Toggle_Red_Led();
         return 1;
     }
-
-    /* Display image on the LCD. */
-    lcd_display_image(
-        (arm::app::object_detection::channelsImageDisplayed == 3) ? currImage : dstPtr,
-        inputImgCols,
-        inputImgRows,
-        arm::app::object_detection::channelsImageDisplayed,
-        dataPsnImgStartX,
-        dataPsnImgStartY,
-        dataPsnImgDownscaleFactor);
-
-    lcd_display_text(str_inf.c_str(), str_inf.size(), dataPsnTxtInfStartX, dataPsnTxtInfStartY, false);
 
     /* Run inference over this image. */
     info("Running inference on image %" PRIu32 " => %s\n", 0, get_filename(0));
 
     if (!model.RunInference()) {
-        printf_err("Inference failed.");
+        printf_err("Inference failed.\n");
+        Toggle_Green_Led();
+        Toggle_Red_Led();
         return 2;
     }
 
     if (!postProcess.DoPostProcess()) {
-        printf_err("Post-processing failed.");
+        printf_err("Post-processing failed. \n");
+        Toggle_Green_Led();
+        Toggle_Red_Led();
         return 3;
     }
-
-    /* Draw boxes. */
-    DrawDetectionBoxes(
-        results, dataPsnImgStartX, dataPsnImgStartY, dataPsnImgDownscaleFactor);
 
     /* Log the results. */
     for (uint32_t i = 0; i < results.size(); ++i) {
