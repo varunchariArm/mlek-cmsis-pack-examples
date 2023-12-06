@@ -42,8 +42,7 @@ extern "C" {
  *
  */
 int platform_init(void);
-void Toggle_Red_Led(void);
-void Toggle_Green_Led(void);
+
 #ifdef __cplusplus
 }
 #endif

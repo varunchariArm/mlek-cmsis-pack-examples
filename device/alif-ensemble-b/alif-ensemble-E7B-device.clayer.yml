@@ -61,9 +61,38 @@ layer:
         - file: ./src/board_init.c
         - file: ./src/platform_drivers.c
         - file: ./src/ethosu_npu_init.c
+        - file: ./src/ethosu_cpu_cache.c
+        - file: ./include/ethosu_cpu_cache.h
+        - file: ./include/platform_pmu.h
+        - file: ./include/timer_ensemble.h
+        - file: ./include/ethosu_profiler.h
+        - file: ./src/timer_ensemble.c
+        - file: ./src/ethosu_profiler.c
+        - file: ./include/Profiler.hpp
+        - file: ./src/Profiler.cc
 
   components:
     - component: Arm::Machine Learning:NPU Support:Ethos-U Driver&Generic U55
+      # Ensemble B options for NPU
+      define:
+        - NPU_QCONFIG: 1       # AXI0=M0 for U55/U65
+        - NPU_REGIONCFG_0: 1   # AXI0=M0 for U55/U65
+        - NPU_REGIONCFG_1: 1   # AXI0=M0 for U55/U65
+        - NPU_REGIONCFG_2: 1   # AXI0=M0 for U55/U65
+        - NPU_REGIONCFG_3: 1   # AXI0=M0 for U55/U65
+        - NPU_REGIONCFG_4: 1   # AXI0=M0 for U55/U65
+        - NPU_REGIONCFG_5: 1   # AXI0=M0 for U55/U65
+        - NPU_REGIONCFG_6: 1   # AXI0=M0 for U55/U65
+        - NPU_REGIONCFG_7: 1   # AXI0=M0 for U55/U65
+        - AXI_LIMIT0_MAX_BEATS_BYTES: 1
+        - AXI_LIMIT1_MAX_BEATS_BYTES: 1
+        - AXI_LIMIT2_MAX_BEATS_BYTES: 1
+        - AXI_LIMIT3_MAX_BEATS_BYTES: 1 # 0 = 64 byte burst & 1 = 128 byte burst
+        - AXI_LIMIT0_MEM_TYPE: 3
+        - AXI_LIMIT1_MEM_TYPE: 3
+        - AXI_LIMIT2_MEM_TYPE: 3
+        - AXI_LIMIT3_MEM_TYPE: 3 # 3 = Normal Non-cacheable Bufferable
+
     - component: tensorflow::Machine Learning:TensorFlow:Kernel&Ethos-U
 
     - component: AlifSemiconductor::Device:Startup

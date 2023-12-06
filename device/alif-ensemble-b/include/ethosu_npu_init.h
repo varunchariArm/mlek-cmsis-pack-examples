@@ -17,6 +17,10 @@
 #ifndef ETHOS_U_NPU_INIT_H
 #define ETHOS_U_NPU_INIT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined(ARM_NPU)
 
 /**
@@ -32,5 +36,9 @@ int arm_ethosu_npu_init(void);
 void arm_ethosu_npu_irq_handler(void);
 
 #endif /* ARM_NPU */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ETHOS_U_NPU_INIT_H */

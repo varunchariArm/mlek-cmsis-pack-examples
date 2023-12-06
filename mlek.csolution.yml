@@ -47,7 +47,7 @@ solution:
     - pack: tensorflow::tensorflow-lite-micro@1.23.2
     - pack: Arm::ethos-u-core-driver@1.23.2
     - pack: ARM::ml-embedded-eval-kit-uc-api@22.8.0-Beta
-    - pack: AlifSemiconductor::Ensemble@0.9.6
+    - pack: AlifSemiconductor::Ensemble@1.0.0-rc4
 
   build-types:
     - type: Debug

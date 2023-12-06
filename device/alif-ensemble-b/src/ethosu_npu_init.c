@@ -24,7 +24,7 @@
 
 #include "ethosu_mem_config.h"      /* Arm Ethos-U memory config */
 #include "ethosu_driver.h"          /* Arm Ethos-U driver header */
-
+#include "ethosu_cpu_cache.h"
 
 struct ethosu_driver ethosu_drv; /* Default Ethos-U device driver */
 
@@ -76,13 +76,6 @@ static void arm_ethosu_npu_irq_init(void)
     /* Enable the IRQ */
     NVIC_EnableIRQ(ethosu_irqnum);
 
-    // NVIC_SetVector(NPU_HP_IRQ_IRQn, (uint32_t) &arm_ethosu_npu_irq_handler);
-    // NVIC_EnableIRQ(NPU_HP_IRQ_IRQn);
-
-    // info("EthosU IRQ#: %u, Handler: 0x%p\n",
-    //       ethosu_irqnum, arm_ethosu_npu_irq_handler);
-    // NVIC_SetVector(NPU_HP_IRQ_IRQn, (uint32_t) &npu_irq_handler);
-    // NVIC_EnableIRQ(NPU_HP_IRQ_IRQn);
 }
 
 int arm_ethosu_npu_init(void)

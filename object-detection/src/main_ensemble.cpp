@@ -37,7 +37,7 @@
 #include CMSIS_device_header /* Gives us IRQ num, base addresses. */
 #include "platform_drivers.h"      /* Board initialisation */
 #include "log_macros.h"      /* Logging macros (optional) */
-
+#include "Profiler.hpp"
 namespace arm {
 namespace app {
     /* Tensor arena buffer */
@@ -64,9 +64,8 @@ int main(void)
         printf_err("init failed \n");
         return 1;
     }
-    
-    Toggle_Green_Led();
-    Toggle_Red_Led();
+    BOARD_LED2_Control(BOARD_LED_STATE_HIGH); //green led on
+    arm::app::Profiler profiler{"object_detection"};
     info("starting the model load \n");
 
     /* Model object creation and initialisation. */
@@ -76,11 +75,9 @@ int main(void)
                     arm::app::object_detection::GetModelPointer(),
                     arm::app::object_detection::GetModelLen())) {
         printf_err("Failed to initialise model\n");
-        Toggle_Green_Led();
-        Toggle_Red_Led();
+        BOARD_LED1_Control(BOARD_LED_STATE_HIGH); //red led on
         return 1;
     }
-    Toggle_Green_Led();
     auto initialImgIdx = 0;
 
     TfLiteTensor* inputTensor   = model.GetInputTensor(0);
@@ -89,13 +86,11 @@ int main(void)
 
     if (!inputTensor->dims) {
         printf_err("Invalid input tensor dims\n");
-        Toggle_Green_Led();
-        Toggle_Red_Led();
+        BOARD_LED1_Control(BOARD_LED_STATE_HIGH);
         return 1;
     } else if (inputTensor->dims->size < 3) {
         printf_err("Input tensor dimension should be >= 3\n");
-        Toggle_Green_Led();
-        Toggle_Red_Led();
+        BOARD_LED1_Control(BOARD_LED_STATE_HIGH);
         return 1;
     }
 
@@ -130,25 +125,27 @@ int main(void)
     /* Run the pre-processing, inference and post-processing. */
     if (!preProcess.DoPreProcess(currImage, copySz)) {
         printf_err("Pre-processing failed. \n");
-        Toggle_Green_Led();
-        Toggle_Red_Led();
+        BOARD_LED1_Control(BOARD_LED_STATE_HIGH);
         return 1;
     }
 
     /* Run inference over this image. */
     info("Running inference on image %" PRIu32 " => %s\n", 0, get_filename(0));
-
+    if(!profiler.StartProfiling("Inference")){
+        info("unable to start profiling \n");
+    }
     if (!model.RunInference()) {
         printf_err("Inference failed.\n");
-        Toggle_Green_Led();
-        Toggle_Red_Led();
+        BOARD_LED1_Control(BOARD_LED_STATE_HIGH);
         return 2;
+    }
+    if(!profiler.StopProfiling()){
+        info("unable to stop profiling \n");
     }
 
     if (!postProcess.DoPostProcess()) {
         printf_err("Post-processing failed. \n");
-        Toggle_Green_Led();
-        Toggle_Red_Led();
+        BOARD_LED1_Control(BOARD_LED_STATE_HIGH);
         return 3;
     }
 
@@ -162,6 +159,7 @@ int main(void)
              results[i].m_w,
              results[i].m_h);
     }
+    profiler.PrintProfilingResult();
 
     results.clear();
 
