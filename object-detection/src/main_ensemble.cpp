@@ -38,6 +38,21 @@
 #include "platform_drivers.h"      /* Board initialisation */
 #include "log_macros.h"      /* Logging macros (optional) */
 #include "Profiler.hpp"
+//LCD
+#include "ScreenLayout.hpp"
+#include "lvgl.h"
+#include "lv_port.h"
+#include "lv_paint_utils.h"
+
+//camera
+#include "image_data.h"
+
+// lv_style_t boxStyle;
+// static lv_color_t  lvgl_image[LIMAGE_Y][LIMAGE_X] __attribute__((section(".bss.lcd_image_buf")));
+namespace {
+lv_style_t boxStyle;
+lv_color_t  lvgl_image[LIMAGE_Y][LIMAGE_X] __attribute__((section(".bss.lcd_image_buf")));                      // 192x192x2 = 73,728
+};
 namespace arm {
 namespace app {
     /* Tensor arena buffer */
@@ -55,6 +70,61 @@ namespace app {
 __asm("  .global __ARM_use_no_argv\n");
 #endif
 
+static void DrawDetectionBoxes(const std::vector<arm::app::object_detection::DetectionResult>& results,
+                                   int imgInputCols, int imgInputRows)
+    {
+        lv_obj_t *frame = arm::app::ScreenLayoutImageHolderObject();
+        float xScale = (float) lv_obj_get_content_width(frame) / imgInputCols;
+        float yScale = (float) lv_obj_get_content_height(frame) / imgInputRows;
+
+        //Delete Boxes
+        // Assume that child 0 of the frame is the image itself
+        int children = lv_obj_get_child_cnt(frame);
+        while (children > 1) {
+            lv_obj_del(lv_obj_get_child(frame, 1));
+            children--;
+        }
+        //Create Box
+        for (const auto& result: results) {
+            int x0 = floor(result.m_x0 * xScale);
+            int y0 = floor(result.m_y0 * yScale);
+            int w = ceil(result.m_w * xScale);
+            int h = ceil(result.m_h * yScale);
+            lv_obj_t *box = lv_obj_create(frame);
+            lv_obj_set_size(box, w, h);
+            lv_obj_add_style(box, &boxStyle, LV_PART_MAIN);
+            lv_obj_set_pos(box, x0, y0);
+        }
+    }
+
+bool LCDInit()
+    {
+        arm::app::ScreenLayoutInit(lvgl_image, sizeof lvgl_image, LIMAGE_X, LIMAGE_Y, LV_ZOOM);
+        uint32_t lv_lock_state = lv_port_lock();
+        
+        lv_label_set_text_static(arm::app::ScreenLayoutHeaderObject(), "Face Detection");
+        lv_label_set_text_static(arm::app::ScreenLayoutLabelObject(0), "Faces Detected: 0");
+        lv_label_set_text_static(arm::app::ScreenLayoutLabelObject(1), "192px image (24-bit)");
+
+        lv_style_init(&boxStyle);
+        lv_style_set_bg_opa(&boxStyle, LV_OPA_TRANSP);
+        lv_style_set_pad_all(&boxStyle, 0);
+        lv_style_set_border_width(&boxStyle, 0);
+        lv_style_set_outline_width(&boxStyle, 2);
+        lv_style_set_outline_pad(&boxStyle, 0);
+        lv_style_set_outline_color(&boxStyle, lv_theme_get_color_primary(arm::app::ScreenLayoutHeaderObject()));
+        lv_style_set_radius(&boxStyle, 4);
+        lv_port_unlock(lv_lock_state);
+
+        /* Initialise the camera */
+        int err = image_init();
+        if (0 != err) {
+            printf_err("hal_image_init failed with error: %d\n", err);
+        }
+
+        return true;
+    }
+
 int main(void)
 {
     /* Initialise the UART module to allow printf related functions (if using retarget) */
@@ -62,6 +132,10 @@ int main(void)
     ret = platform_init();
     if (ret!=0){
         printf_err("init failed \n");
+        return 1;
+    }
+    if(!LCDInit()){
+        printf_err("LCD init failed \n");
         return 1;
     }
     BOARD_LED2_Control(BOARD_LED_STATE_HIGH); //green led on
@@ -78,90 +152,99 @@ int main(void)
         BOARD_LED1_Control(BOARD_LED_STATE_HIGH); //red led on
         return 1;
     }
-    auto initialImgIdx = 0;
+    do{
+        TfLiteTensor* inputTensor   = model.GetInputTensor(0);
+        TfLiteTensor* outputTensor0 = model.GetOutputTensor(0);
+        TfLiteTensor* outputTensor1 = model.GetOutputTensor(1);
 
-    TfLiteTensor* inputTensor   = model.GetInputTensor(0);
-    TfLiteTensor* outputTensor0 = model.GetOutputTensor(0);
-    TfLiteTensor* outputTensor1 = model.GetOutputTensor(1);
+        if (!inputTensor->dims) {
+            printf_err("Invalid input tensor dims\n");
+            BOARD_LED1_Control(BOARD_LED_STATE_HIGH);
+            return 1;
+        } else if (inputTensor->dims->size < 3) {
+            printf_err("Input tensor dimension should be >= 3\n");
+            BOARD_LED1_Control(BOARD_LED_STATE_HIGH);
+            return 1;
+        }
 
-    if (!inputTensor->dims) {
-        printf_err("Invalid input tensor dims\n");
-        BOARD_LED1_Control(BOARD_LED_STATE_HIGH);
-        return 1;
-    } else if (inputTensor->dims->size < 3) {
-        printf_err("Input tensor dimension should be >= 3\n");
-        BOARD_LED1_Control(BOARD_LED_STATE_HIGH);
-        return 1;
-    }
+        TfLiteIntArray* inputShape = model.GetInputShape(0);
 
-    TfLiteIntArray* inputShape = model.GetInputShape(0);
+        const int inputImgCols = inputShape->data[arm::app::YoloFastestModel::ms_inputColsIdx];
+        const int inputImgRows = inputShape->data[arm::app::YoloFastestModel::ms_inputRowsIdx];
 
-    const int inputImgCols = inputShape->data[arm::app::YoloFastestModel::ms_inputColsIdx];
-    const int inputImgRows = inputShape->data[arm::app::YoloFastestModel::ms_inputRowsIdx];
+        /* Set up pre and post-processing. */
+        arm::app::DetectorPreProcess preProcess =
+            arm::app::DetectorPreProcess(inputTensor, true, model.IsDataSigned());
 
-    /* Set up pre and post-processing. */
-    arm::app::DetectorPreProcess preProcess =
-        arm::app::DetectorPreProcess(inputTensor, true, model.IsDataSigned());
+        std::vector<arm::app::object_detection::DetectionResult> results;
+        const arm::app::object_detection::PostProcessParams postProcessParams{
+            inputImgRows,
+            inputImgCols,
+            arm::app::object_detection::originalImageSize,
+            arm::app::object_detection::anchor1,
+            arm::app::object_detection::anchor2};
+        arm::app::DetectorPostProcess postProcess =
+            arm::app::DetectorPostProcess(outputTensor0, outputTensor1, results, postProcessParams);
 
-    std::vector<arm::app::object_detection::DetectionResult> results;
-    const arm::app::object_detection::PostProcessParams postProcessParams{
-        inputImgRows,
-        inputImgCols,
-        arm::app::object_detection::originalImageSize,
-        arm::app::object_detection::anchor1,
-        arm::app::object_detection::anchor2};
-    arm::app::DetectorPostProcess postProcess =
-        arm::app::DetectorPostProcess(outputTensor0, outputTensor1, results, postProcessParams);
+        results.clear();
 
-    /* Strings for presentation/logging. */
-    std::string str_inf{"Running inference... "};
+        // const uint8_t* currImage = get_img_array(0);
+        const uint8_t* currImage = get_image_data(inputImgCols, inputImgRows);
+        if (!currImage) {
+            printf_err("hal_get_image_data failed");
+            return 1;
+        }
 
-    const uint8_t* currImage = get_img_array(0);
+        {
+            ScopedLVGLLock lv_lock;
 
-    auto dstPtr = static_cast<uint8_t*>(inputTensor->data.uint8);
-    const size_t copySz =
-        inputTensor->bytes < IMAGE_DATA_SIZE ? inputTensor->bytes : IMAGE_DATA_SIZE;
+                /* Display this image on the LCD. */
+            write_to_lvgl_buf(inputImgCols, inputImgRows,
+                            currImage, &lvgl_image[0][0]);
+            lv_obj_invalidate(arm::app::ScreenLayoutImageObject());
 
-    /* Run the pre-processing, inference and post-processing. */
-    if (!preProcess.DoPreProcess(currImage, copySz)) {
-        printf_err("Pre-processing failed. \n");
-        BOARD_LED1_Control(BOARD_LED_STATE_HIGH);
-        return 1;
-    }
+            //lv_led_on(arm::app::ScreenLayoutLEDObject());
 
-    /* Run inference over this image. */
-    info("Running inference on image %" PRIu32 " => %s\n", 0, get_filename(0));
-    if(!profiler.StartProfiling("Inference")){
-        info("unable to start profiling \n");
-    }
-    if (!model.RunInference()) {
-        printf_err("Inference failed.\n");
-        BOARD_LED1_Control(BOARD_LED_STATE_HIGH);
-        return 2;
-    }
-    if(!profiler.StopProfiling()){
-        info("unable to stop profiling \n");
-    }
+            const size_t copySz = inputTensor->bytes;
 
-    if (!postProcess.DoPostProcess()) {
-        printf_err("Post-processing failed. \n");
-        BOARD_LED1_Control(BOARD_LED_STATE_HIGH);
-        return 3;
-    }
+            /* Run the pre-processing, inference and post-processing. */
+            if (!preProcess.DoPreProcess(currImage, copySz)) {
+                printf_err("Pre-processing failed.");
+                return 3;
+            }
 
-    /* Log the results. */
-    for (uint32_t i = 0; i < results.size(); ++i) {
-        info("Detection at index %" PRIu32 ", at x-coordinate %" PRIu32 ", y-coordinate %" PRIu32
-             ", width %" PRIu32 ", height %" PRIu32 "\n",
-             i,
-             results[i].m_x0,
-             results[i].m_y0,
-             results[i].m_w,
-             results[i].m_h);
-    }
-    profiler.PrintProfilingResult();
+            /* Run inference over this image. */
+            profiler.StartProfiling("Inference");
+            if (!model.RunInference()) {
+                printf_err("Inference failed.");
+                return 3;
+            }
+            profiler.StopProfiling();
+            if (!postProcess.DoPostProcess()) {
+                printf_err("Post-processing failed.");
+                return 3;
+            }
 
-    results.clear();
+            lv_label_set_text_fmt(arm::app::ScreenLayoutLabelObject(0), "Faces Detected: %i", results.size());
+
+            /* Draw boxes. */
+            DrawDetectionBoxes(results, inputImgCols, inputImgRows);
+
+        } // ScopedLVGLLock
+
+        /* Log the results. */
+        for (uint32_t i = 0; i < results.size(); ++i) {
+            info("Detection at index %" PRIu32 ", at x-coordinate %" PRIu32 ", y-coordinate %" PRIu32
+                ", width %" PRIu32 ", height %" PRIu32 "\n",
+                i,
+                results[i].m_x0,
+                results[i].m_y0,
+                results[i].m_w,
+                results[i].m_h);
+        }
+        profiler.PrintProfilingResult();
+
+    }while(1);
 
     return 0;
 }

@@ -1,0 +1,6 @@
+[submodule "device/alif-ensemble-b/dependencies/cmsis-ensemble-b"]
+	path = device/alif-ensemble-b/dependencies/cmsis-ensemble
+	url = https://github.com/alifsemi/alif_ensemble-cmsis-dfp.git
+[submodule "device/alif-ensemble-b/dependencies/lvgl"]
+	path = device/alif-ensemble-b/dependencies/lvgl
+	url = https://github.com/lvgl/lvgl.git

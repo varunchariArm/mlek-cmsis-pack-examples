@@ -2,6 +2,7 @@
 
 #include "RTE_Components.h"
 #include CMSIS_device_header
+#include "Driver_HWSEM.h"
 
 #include "Driver_GPIO.h"
 #include "board.h"
@@ -10,6 +11,9 @@
 #include "ethosu_driver.h"
 #include "ethosu_npu_init.h"
 #include <string.h>
+#include "lcd_img.h"
+
+uint32_t tprof1, tprof2, tprof3, tprof4, tprof5;
 
 #ifdef COPY_VECTORS
 
@@ -45,12 +49,34 @@ static void CpuCacheEnable(void)
 int platform_init (void)
 {    
     int ret = 0;
+    if (0 != Init_SysTick()) {
+        printf("Failed to initialise system tick config\n");
+    }
+
+    /* Forces retarget code to be included in build */
+    extern void _clock_init(void);
+    _clock_init();
 #ifdef COPY_VECTORS
     copy_vtor_table_to_ram();
 #endif
-    BOARD_Power_Init();
-    BOARD_Clock_Init();
-    BOARD_Pinmux_Init();
+    extern ARM_DRIVER_HWSEM ARM_Driver_HWSEM_(0);
+    ARM_DRIVER_HWSEM *HWSEMdrv = &ARM_Driver_HWSEM_(0);
+    HWSEMdrv->Initialize(NULL);
+    /* Only 1 core will do the pinmux */
+    if (HWSEMdrv->Lock() == ARM_DRIVER_OK) {
+        /* We're first to acquire the lock - we do it */
+        BOARD_Power_Init();
+        BOARD_Clock_Init();
+        BOARD_Pinmux_Init();
+
+        /* Lock a second time to raise the count to 2 - the signal that we've finished */
+        HWSEMdrv->Lock();
+    } else {
+        /* Someone else got there first - they did it or are doing it. Wait until we see count 2 indicating they've finished */
+        while (HWSEMdrv->GetCount() < 2);
+    }
+
+    HWSEMdrv->Uninitialize();
     ret = tracelib_init(NULL);
     if(ret!=0){
         info("uart init failed \n");
@@ -69,6 +95,9 @@ int platform_init (void)
 
     /* Enable the CPU Cache */
     CpuCacheEnable();
+
+    //LCD init
+    lcd_init();
     return ret;
 
 }

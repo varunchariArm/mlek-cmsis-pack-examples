@@ -25,14 +25,8 @@ solution:
     - pack: ARM::CMSIS
     - pack: ARM::CMSIS-DSP@1.14.4
     - pack: ARM::CMSIS-NN@4.0.0
-    # - pack: Arm::ethos-u-core-driver@1.22.8
-    # - pack: ARM::ml-embedded-eval-kit-uc-api@22.8.0-Beta
-    # - pack: tensorflow::flatbuffers@1.22.8
-    # - pack: tensorflow::gemmlowp@1.22.8
-    # - pack: tensorflow::kissfft@1.22.8
-    # - pack: tensorflow::ruy@1.22.8
-    # - pack: tensorflow::tensorflow-lite-micro@1.22.8
-    # - pack: AlifSemiconductor::Ensemble@0.5.2
+    - pack: ARM::Arm-2D
+    - pack: LVGL::lvgl@8.3.11
 
     - pack: ARM::V2M_MPS3_SSE_300_BSP@1.3.0
     - pack: ARM::V2M_MPS3_SSE_310_BSP@1.0.0
@@ -47,13 +41,13 @@ solution:
     - pack: tensorflow::tensorflow-lite-micro@1.23.2
     - pack: Arm::ethos-u-core-driver@1.23.2
     - pack: ARM::ml-embedded-eval-kit-uc-api@22.8.0-Beta
-    - pack: AlifSemiconductor::Ensemble@1.0.0-rc4
+    - pack: AlifSemiconductor::Ensemble@1.0.0
 
   build-types:
     - type: Debug
       compiler: AC6
       debug: on
-      optimize: none
+      optimize: size
 
     - type: Release
       compiler: AC6
@@ -104,6 +98,7 @@ solution:
         - CONSOLE_UART: 4
         - COPY_VECTORS
         - LOG_LEVEL: "LOG_LEVEL_DEBUG"
+        - LV_THEME_DEFAULT_DARK: 1
 
     # NOTE: Currently Keil Studio Cloud doesn't allow switching between different NPU configurations.
     #       Applications produced by this build will only work if the FVP is run manually.

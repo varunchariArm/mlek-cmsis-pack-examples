@@ -11,7 +11,7 @@
    - Neither the name of ALIF SEMICONDUCTOR nor the names of its contributors
      may be used to endorse or promote products derived from this software
      without specific prior written permission.
- *
+   *
    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
    AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
    IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -25,30 +25,37 @@
    POSSIBILITY OF SUCH DAMAGE.
    ---------------------------------------------------------------------------*/
 
-#ifndef PLATFORM_DRIVERS_H_
-#define PLATFORM_DRIVERS_H_
+/**************************************************************************//**
+ * @file     delay.h
+ * @author   Tanay Rami
+ * @email    tanay@alifsemi.com
+ * @version  V1.0.0
+ * @date     05-Oct-2021
+ * @brief    Common Delay definitions.
+ ******************************************************************************/
 
-#include "log_macros.h"     /* Logging related helpers. */
+#ifndef DELAY_H_
+#define DELAY_H_
 
-/* Platform components */
-#include "RTE_Components.h" /* For CPU related defintiions */
-#include "uart_tracelib.h"
-#include "timer_ensemble.h"     /* Timer functions. */
-
-#ifdef __cplusplus
-extern "C" {
+#ifdef  __cplusplus
+extern "C"
+{
 #endif
-/**
- * @brief Initializes the platform lib.
- *
- */
-int platform_init(void);
-#define LIMAGE_X        192
-#define LIMAGE_Y        192
-#define LV_ZOOM         (2 * 256)
 
-#ifdef __cplusplus
+#include <stdint.h>
+
+/* Delay for millisecond:
+ *  Provide delay in terms of sleep or wait for millisecond
+ *  depending on RTOS availability.
+ */
+extern void sleep_or_wait_msec(uint32_t msec);
+
+extern void sleep_or_wait_usec(uint32_t usec);
+
+#ifdef  __cplusplus
 }
 #endif
 
-#endif /* PLATFORM_DRIVERS_H_ */
+#endif /* DELAY_H_ */
+
+/************************ (C) COPYRIGHT ALIF SEMICONDUCTOR *****END OF FILE****/

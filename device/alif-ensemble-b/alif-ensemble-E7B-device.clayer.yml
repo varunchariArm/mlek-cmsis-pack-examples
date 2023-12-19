@@ -20,37 +20,46 @@ layer:
   description: Alif Ensemble E7 ML islands' CPU device layer (High-Performance and High-Efficiency Arm Cortex-M55 CPUs).
 
   groups:
-    # - group: GPIO
-    #   add-path:
-    #     - ./include
-    #   files:
-    #     - file: ./src/GpioSignal.cpp
-    #     - file: ./include/GpioSignal.hpp
-    #     - file: ./src/gpio.c
-
-    # - group: AudioHelpers
-    #   for-context: +Alif-E7-M55-HE
-    #   files:
-    #     - file: ./src/BoardAudioUtils.cpp
-    #     - file: ./src/BoardPlotUtils.cpp
-    #     - file: ./include/BoardAudioUtils.hpp
-    #     - file: ./include/BoardPlotUtils.hpp
-
-    # - group: CameraHelpers
-    #   for-context: +Alif-E7-M55-HP
-    #   files:
-    #     - file: ./src/CameraCapture.cpp
-
-    # - group: Display
-    #   for-context: +Alif-E7-M55-HP
-    #   files:
-    #     - file: ./src/LcdDisplay.cpp
-
     - group: Retarget
       files:
         - file: ./src/retarget_ensemble.c
         - file: ./src/uart_tracelib.c
         - file: ./include/uart_tracelib.h
+    - group: Camera
+      files:
+        - file: ./camera/include/base_def.h
+        - file: ./camera/include/bayer.h
+        - file: ./camera/include/image_data.h      
+        - file: ./camera/include/camera.h
+        - file: ./camera/include/Camera_Common.h
+        - file: ./camera/include/image_processing.h
+        - file: ./camera/include/tiff.h
+        - file: ./camera/src/bayer2rgb.c
+        - file: ./camera/src/camera.c
+        - file: ./camera/src/color_correction.c
+        - file: ./camera/src/image_ensemble.c
+        - file: ./camera/src/image_processing.c
+        - file: ./camera/src/tiff.c
+    - group: LCD
+      files:
+        - file: ./lcd/include/LCD_panel.h
+        - file: ./lcd/include/lv_conf.h
+        - file: ./lcd/include/lv_paint_utils.h
+        - file: ./lcd/include/ScreenLayout.hpp
+        - file: ./lcd/include/glcd.h
+        - file: ./lcd/include/lcd_img.h
+        - file: ./lcd/include/delay.h
+        - file: ./lcd/src/Alif240.c
+        - file: ./lcd/src/Alif240_white.c
+        - file: ./lcd/src/LCD_Panel.c
+        - file: ./lcd/src/lv_paint_utils.c
+        - file: ./lcd/src/lv_port.c
+        - file: ./lcd/src/ScreenLayout.cc
+        - file: ./lcd/src/handlers.c
+        - file: ./lcd/src/delay.c        
+        - file: ./lcd/src/glcd_lvgl.c
+        - file: ./lcd/src/lcd_img.c
+        - file: ./lcd/src/lv_font_9x15_h.c
 
     - group: Init
       files:
@@ -101,34 +110,28 @@ layer:
     - component: AlifSemiconductor::Device:SOC Peripherals:PINCONF
     - component: ARM::CMSIS Driver:USART
     - component: ARM::CMSIS Driver:USART:Custom
+    - component: ARM::Acceleration:Arm-2D:Core
+
+    - component: ARM::Acceleration:Arm-2D:Transform
+
+    - component: LVGL::LVGL&LVGL:lvgl:Essential
+    - component: LVGL::LVGL&LVGL:lvgl:Extra Themes
+    - component: LVGL::LVGL&LVGL:lvgl:GPU Arm-2D
 
     - component: AlifSemiconductor::Device:SOC Peripherals:DMA
 
-    # - component: AlifSemiconductor::Device:Startup
-    # - component: AlifSemiconductor::Device:SE Services:SE RunTime services&Source
-    # - component: AlifSemiconductor::Device:SE Services:MHU Driver
-    #   for-context: +Alif-E7-M55-HE
+    - component: AlifSemiconductor::Device:SOC Peripherals:I2S
+    - component: AlifSemiconductor::Device:SOC Peripherals:HWSEM
+    - component: AlifSemiconductor::Device:SOC Peripherals:I2C
+    - component: AlifSemiconductor::Device:SOC Peripherals:CDC
 
-    # - component: AlifSemiconductor::Device:SOC Peripherals:I2S
-    #   for-context: +Alif-E7-M55-HE
+    - component: AlifSemiconductor::Device:SOC Peripherals:MIPI CSI2
 
-    # - component: AlifSemiconductor::Device:SOC Peripherals:I3C
-    #   for-context: +Alif-E7-M55-HP
+    - component: AlifSemiconductor::Device:SOC Peripherals:MIPI DSI
 
-    # - component: AlifSemiconductor::Device:SOC Peripherals:CDC200
-    #   for-context: +Alif-E7-M55-HP
+    - component: AlifSemiconductor::Device:SOC Peripherals:CPI
+    - component: AlifSemiconductor::Device:SOC Peripherals:SPI
 
-    # - component: AlifSemiconductor::Device:SOC Peripherals:MIPI CSI2
-    #   for-context: +Alif-E7-M55-HP
+    - component: AlifSemiconductor::BSP:External peripherals:ILI9806E LCD panel
 
-    # - component: AlifSemiconductor::Device:SOC Peripherals:MIPI DSI
-    #   for-context: +Alif-E7-M55-HP
-
-    # - component: AlifSemiconductor::Device:SOC Peripherals:CAMERA Controller
-    #   for-context: +Alif-E7-M55-HP
-
-    # - component: AlifSemiconductor::BSP:External peripherals:ILI9806E LCD panel
-    #   for-context: +Alif-E7-M55-HP
-
-    # - component: AlifSemiconductor::BSP:External peripherals:CAMERA Sensor ARX3A0
-    #   for-context: +Alif-E7-M55-HP
+    - component: AlifSemiconductor::BSP:External peripherals:CAMERA Sensor ARX3A0
